@@ -33,7 +33,7 @@ Jeu de kart racing 3D jouable dans le navigateur (style arcade/cartoon), dévelo
 
 1. Place la photo fournie dans :
    - `assets/images/assane-head.jpg`
-2. Le jeu applique automatiquement cette image sur la tête 3D du personnage principal **Assane Thiongane**.
+2. Le jeu applique automatiquement cette image sur le visage de la tête 3D (personnage humain) d'**Assane Thiongane**.
 
 ## Lancer le jeu
 
@@ -62,4 +62,3 @@ Puis ouvre l'URL affichée dans le terminal.
 - `↓` freiner
 - `←` / `→` diriger
 - `Espace` utiliser le bonus
-

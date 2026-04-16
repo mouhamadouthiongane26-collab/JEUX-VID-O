@@ -132,19 +132,106 @@ function buildOvalWaypoints(rx, rz, variance, yOffset) {
   return points;
 }
 
+function createDriver(isMainHero) {
+  const driver = new THREE.Group();
+
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xe0b088, roughness: 0.55 });
+  const shirtMat = new THREE.MeshStandardMaterial({ color: 0xffc531, roughness: 0.7 });
+  const pantsMat = new THREE.MeshStandardMaterial({ color: 0x324a90, roughness: 0.8 });
+
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.52, 1.1, 8, 12), shirtMat);
+  torso.position.set(0, 2.08, -0.2);
+  torso.castShadow = true;
+  driver.add(torso);
+
+  const shoulders = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 0.5), shirtMat);
+  shoulders.position.set(0, 2.35, -0.2);
+  shoulders.castShadow = true;
+  driver.add(shoulders);
+
+  const armGeo = new THREE.CapsuleGeometry(0.15, 0.65, 6, 10);
+  const leftArm = new THREE.Mesh(armGeo, skinMat);
+  leftArm.position.set(0.45, 2.05, 0.32);
+  leftArm.rotation.z = -0.45;
+  leftArm.rotation.x = 0.8;
+  leftArm.castShadow = true;
+  driver.add(leftArm);
+
+  const rightArm = new THREE.Mesh(armGeo, skinMat);
+  rightArm.position.set(-0.45, 2.05, 0.32);
+  rightArm.rotation.z = 0.45;
+  rightArm.rotation.x = 0.8;
+  rightArm.castShadow = true;
+  driver.add(rightArm);
+
+  const legGeo = new THREE.CapsuleGeometry(0.17, 0.7, 6, 10);
+  const leftLeg = new THREE.Mesh(legGeo, pantsMat);
+  leftLeg.position.set(0.28, 1.33, 0.45);
+  leftLeg.rotation.x = 1.35;
+  leftLeg.castShadow = true;
+  driver.add(leftLeg);
+
+  const rightLeg = new THREE.Mesh(legGeo, pantsMat);
+  rightLeg.position.set(-0.28, 1.33, 0.45);
+  rightLeg.rotation.x = 1.35;
+  rightLeg.castShadow = true;
+  driver.add(rightLeg);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.44, 26, 20), skinMat.clone());
+  head.position.set(0, 2.95, -0.38);
+  head.castShadow = true;
+  driver.add(head);
+
+  if (isMainHero) {
+    const face = new THREE.Mesh(
+      new THREE.CircleGeometry(0.43, 42),
+      new THREE.MeshStandardMaterial({
+        map: assaneHeadTexture,
+        transparent: true,
+        alphaTest: 0.08,
+      }),
+    );
+    face.position.set(0, 2.95, -0.77);
+    face.rotation.y = Math.PI;
+    face.renderOrder = 2;
+    driver.add(face);
+
+    const hair = new THREE.Mesh(
+      new THREE.SphereGeometry(0.47, 16, 14, 0, Math.PI * 2, 0, Math.PI / 2.3),
+      new THREE.MeshStandardMaterial({ color: 0x2b1d12, roughness: 0.95 }),
+    );
+    hair.position.set(0, 3.12, -0.35);
+    driver.add(hair);
+  }
+
+  return driver;
+}
+
 function createKartMesh(color, isMainHero = false) {
   const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.8, 4), new THREE.MeshStandardMaterial({ color }));
-  body.position.y = 1.1;
-  body.castShadow = true;
-  g.add(body);
-  const headMaterial = isMainHero
-    ? new THREE.MeshStandardMaterial({ map: assaneHeadTexture })
-    : new THREE.MeshStandardMaterial({ color: 0xffddb0 });
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.75, 24, 24), headMaterial);
-  head.position.set(0, 2, -0.25);
-  head.rotation.y = -Math.PI / 2;
-  g.add(head);
+  const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.8, 4), new THREE.MeshStandardMaterial({ color }));
+  chassis.position.y = 1.1;
+  chassis.castShadow = true;
+  g.add(chassis);
+
+  const seat = new THREE.Mesh(
+    new THREE.BoxGeometry(1.3, 0.65, 1.15),
+    new THREE.MeshStandardMaterial({ color: 0x242424, roughness: 0.9 }),
+  );
+  seat.position.set(0, 1.55, -0.25);
+  g.add(seat);
+
+  const steeringWheel = new THREE.Mesh(
+    new THREE.TorusGeometry(0.35, 0.05, 10, 18),
+    new THREE.MeshStandardMaterial({ color: 0x111111 }),
+  );
+  steeringWheel.position.set(0, 1.8, 0.45);
+  steeringWheel.rotation.x = Math.PI / 2.7;
+  g.add(steeringWheel);
+
+  const driver = createDriver(isMainHero);
+  g.add(driver);
+
   const wheelGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.5, 10);
   const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
   [[1.3, 0.55, 1.7], [-1.3, 0.55, 1.7], [1.3, 0.55, -1.7], [-1.3, 0.55, -1.7]].forEach((p) => {
