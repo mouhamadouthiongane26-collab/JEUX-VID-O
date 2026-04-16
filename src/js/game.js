@@ -1,45 +1,39 @@
 import * as THREE from 'https://unpkg.com/three@0.161.0/build/three.module.js';
 
+/**
+ * ASSANE KART 3D - VERSION MARIO KART (avec saut)
+ * - Photo joueur: assets/images/player.png
+ * - Contrôles MacBook: flèches, espace, shift, J
+ */
+
+// -------------------------------------------------
+// Setup Three.js
+// -------------------------------------------------
 const canvas = document.getElementById('game');
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x9ad6ff);
-scene.fog = new THREE.Fog(0x9ad6ff, 120, 420);
+scene.background = new THREE.Color(0x99d7ff);
+scene.fog = new THREE.Fog(0x99d7ff, 120, 360);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 
-const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 16, -28);
+const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 13, -20);
 
-const hemi = new THREE.HemisphereLight(0xffffff, 0x446688, 0.95);
-scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xffffff, 1.3);
-sun.position.set(80, 120, 40);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x5f8ec4, 0.95));
+const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+sun.position.set(40, 80, 30);
 sun.castShadow = true;
 scene.add(sun);
 
 const clock = new THREE.Clock();
-const keyState = {};
-const textureLoader = new THREE.TextureLoader();
-const ASSANE_HEAD_TEXTURE_PATH = 'assets/images/assane-head.jpg';
-const assaneHeadTexture = textureLoader.load(
-  ASSANE_HEAD_TEXTURE_PATH,
-  (texture) => {
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.wrapS = THREE.ClampToEdgeWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-  },
-  undefined,
-  () => {
-    console.warn(
-      `[Assane Kart] Texture introuvable: ${ASSANE_HEAD_TEXTURE_PATH}. ` +
-      'Ajoutez la photo fournie dans assets/images/assane-head.jpg.',
-    );
-  },
-);
+const keys = {};
 
+// -------------------------------------------------
+// UI
+// -------------------------------------------------
 const ui = {
   main: document.getElementById('main-menu'),
   setup: document.getElementById('setup-menu'),
@@ -55,63 +49,15 @@ const ui = {
   resultText: document.getElementById('result-text'),
 };
 
-const characters = [
-  { name: 'Assane Thiongane', color: 0x2a6cff },
-  { name: 'Kira Volt', color: 0xff4a6e },
-  { name: 'Neo Panda', color: 0x2de77b },
-  { name: 'Luna Jet', color: 0xffd93d },
-];
-const karts = [
-  { name: 'Éclair', maxSpeed: 66, accel: 30, handling: 2.8 },
-  { name: 'Titan', maxSpeed: 75, accel: 24, handling: 2.2 },
-  { name: 'Agile-X', maxSpeed: 60, accel: 33, handling: 3.4 },
-];
-
-const tracks = {
-  city: {
-    name: 'Circuit Ville',
-    color: 0x6c7a89,
-    waypoints: buildOvalWaypoints(68, 44, 22, 0),
-    deco: () => addCityDeco(),
-  },
-  desert: {
-    name: 'Circuit Désert',
-    color: 0xc89f58,
-    waypoints: buildOvalWaypoints(82, 52, 18, 8),
-    deco: () => addDesertDeco(),
-  },
-  jungle: {
-    name: 'Circuit Jungle',
-    color: 0x4f8f58,
-    waypoints: buildOvalWaypoints(74, 48, 26, -6),
-    deco: () => addJungleDeco(),
-  },
-};
-
-let game = {
-  state: 'menu',
-  selectedCharacter: 0,
-  selectedKart: 0,
-  selectedTrack: 'city',
-  racers: [],
-  itemBoxes: [],
-  projectiles: [],
-  traps: [],
-  particles: [],
-  trackObj: null,
-  decorGroup: null,
-  countdown: 4,
-  raceTime: 0,
-  started: false,
-  finished: false,
-};
-
+// -------------------------------------------------
+// Audio
+// -------------------------------------------------
 const listener = new THREE.AudioListener();
 camera.add(listener);
 const audioCtx = listener.context;
-let masterVolume = 0.7;
+let masterVolume = 0.75;
 
-function playTone(freq = 220, duration = 0.08, type = 'square', gain = 0.05) {
+function playTone(freq = 260, duration = 0.07, type = 'square', gain = 0.05) {
   const osc = audioCtx.createOscillator();
   const amp = audioCtx.createGain();
   osc.type = type;
@@ -122,231 +68,197 @@ function playTone(freq = 220, duration = 0.08, type = 'square', gain = 0.05) {
   osc.stop(audioCtx.currentTime + duration);
 }
 
-function buildOvalWaypoints(rx, rz, variance, yOffset) {
-  const points = [];
-  for (let i = 0; i < 32; i++) {
-    const t = (i / 32) * Math.PI * 2;
-    const wobble = Math.sin(t * 3) * variance;
-    points.push(new THREE.Vector3(Math.cos(t) * (rx + wobble), yOffset, Math.sin(t) * rz));
+// -------------------------------------------------
+// Data
+// -------------------------------------------------
+const characters = [
+  { name: 'Assane Thiongane', color: 0x2d71ff },
+  { name: 'Kira Volt', color: 0xff4f82 },
+  { name: 'Neo Panda', color: 0x2ae07b },
+  { name: 'Luna Jet', color: 0xffd44c },
+];
+
+const karts = [
+  { name: 'Sprint', maxSpeed: 66, accel: 30, handling: 2.6 },
+  { name: 'Turbo-X', maxSpeed: 73, accel: 24, handling: 2.2 },
+  { name: 'Drift Pro', maxSpeed: 62, accel: 32, handling: 3.2 },
+];
+
+const tracks = {
+  ville: { name: 'Ville', rx: 68, rz: 44, variance: 16, color: 0x697686 },
+  desert: { name: 'Désert', rx: 78, rz: 50, variance: 10, color: 0xc99e59 },
+  jungle: { name: 'Jungle', rx: 72, rz: 48, variance: 20, color: 0x4f8c56 },
+};
+
+const game = {
+  state: 'menu',
+  selectedCharacter: 0,
+  selectedKart: 0,
+  selectedTrack: 'ville',
+  started: false,
+  finished: false,
+  raceTime: 0,
+  countdown: 3,
+  waypoints: [],
+  racers: [],
+  itemBoxes: [],
+  projectiles: [],
+  traps: [],
+  ramps: [],
+  particles: [],
+  worldGroup: null,
+};
+
+const textureLoader = new THREE.TextureLoader();
+const playerFaceTexture = textureLoader.load(
+  'assets/images/player.png',
+  (t) => { t.colorSpace = THREE.SRGBColorSpace; },
+  undefined,
+  () => console.warn('Image non trouvée: assets/images/player.png'),
+);
+
+// -------------------------------------------------
+// Track / décor
+// -------------------------------------------------
+function buildWaypoints({ rx, rz, variance }) {
+  const pts = [];
+  for (let i = 0; i < 36; i++) {
+    const t = (i / 36) * Math.PI * 2;
+    const wobble = Math.sin(t * 3.2) * variance;
+    pts.push(new THREE.Vector3(Math.cos(t) * (rx + wobble), 0, Math.sin(t) * rz));
   }
-  return points;
+  return pts;
 }
 
-function createDriver(isMainHero) {
-  const driver = new THREE.Group();
+function buildWorld() {
+  if (game.worldGroup) scene.remove(game.worldGroup);
+  const cfg = tracks[game.selectedTrack];
+  game.waypoints = buildWaypoints(cfg);
+  game.worldGroup = new THREE.Group();
+  game.ramps = [];
 
-  const skinMat = new THREE.MeshStandardMaterial({ color: 0xe0b088, roughness: 0.55 });
-  const shirtMat = new THREE.MeshStandardMaterial({ color: 0xffc531, roughness: 0.7 });
-  const pantsMat = new THREE.MeshStandardMaterial({ color: 0x324a90, roughness: 0.8 });
+  const roadMat = new THREE.MeshStandardMaterial({ color: cfg.color, roughness: 0.85 });
+  const borderMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
 
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.52, 1.1, 8, 12), shirtMat);
-  torso.position.set(0, 2.08, -0.2);
-  torso.castShadow = true;
-  driver.add(torso);
-
-  const shoulders = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 0.5), shirtMat);
-  shoulders.position.set(0, 2.35, -0.2);
-  shoulders.castShadow = true;
-  driver.add(shoulders);
-
-  const armGeo = new THREE.CapsuleGeometry(0.15, 0.65, 6, 10);
-  const leftArm = new THREE.Mesh(armGeo, skinMat);
-  leftArm.position.set(0.45, 2.05, 0.32);
-  leftArm.rotation.z = -0.45;
-  leftArm.rotation.x = 0.8;
-  leftArm.castShadow = true;
-  driver.add(leftArm);
-
-  const rightArm = new THREE.Mesh(armGeo, skinMat);
-  rightArm.position.set(-0.45, 2.05, 0.32);
-  rightArm.rotation.z = 0.45;
-  rightArm.rotation.x = 0.8;
-  rightArm.castShadow = true;
-  driver.add(rightArm);
-
-  const legGeo = new THREE.CapsuleGeometry(0.17, 0.7, 6, 10);
-  const leftLeg = new THREE.Mesh(legGeo, pantsMat);
-  leftLeg.position.set(0.28, 1.33, 0.45);
-  leftLeg.rotation.x = 1.35;
-  leftLeg.castShadow = true;
-  driver.add(leftLeg);
-
-  const rightLeg = new THREE.Mesh(legGeo, pantsMat);
-  rightLeg.position.set(-0.28, 1.33, 0.45);
-  rightLeg.rotation.x = 1.35;
-  rightLeg.castShadow = true;
-  driver.add(rightLeg);
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.44, 26, 20), skinMat.clone());
-  head.position.set(0, 2.95, -0.38);
-  head.castShadow = true;
-  driver.add(head);
-
-  if (isMainHero) {
-    const face = new THREE.Mesh(
-      new THREE.CircleGeometry(0.43, 42),
-      new THREE.MeshStandardMaterial({
-        map: assaneHeadTexture,
-        transparent: true,
-        alphaTest: 0.08,
-      }),
-    );
-    face.position.set(0, 2.95, -0.77);
-    face.rotation.y = Math.PI;
-    face.renderOrder = 2;
-    driver.add(face);
-
-    const hair = new THREE.Mesh(
-      new THREE.SphereGeometry(0.47, 16, 14, 0, Math.PI * 2, 0, Math.PI / 2.3),
-      new THREE.MeshStandardMaterial({ color: 0x2b1d12, roughness: 0.95 }),
-    );
-    hair.position.set(0, 3.12, -0.35);
-    driver.add(hair);
-  }
-
-  return driver;
-}
-
-function createKartMesh(color, isMainHero = false) {
-  const g = new THREE.Group();
-  const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.8, 4), new THREE.MeshStandardMaterial({ color }));
-  chassis.position.y = 1.1;
-  chassis.castShadow = true;
-  g.add(chassis);
-
-  const seat = new THREE.Mesh(
-    new THREE.BoxGeometry(1.3, 0.65, 1.15),
-    new THREE.MeshStandardMaterial({ color: 0x242424, roughness: 0.9 }),
-  );
-  seat.position.set(0, 1.55, -0.25);
-  g.add(seat);
-
-  const steeringWheel = new THREE.Mesh(
-    new THREE.TorusGeometry(0.35, 0.05, 10, 18),
-    new THREE.MeshStandardMaterial({ color: 0x111111 }),
-  );
-  steeringWheel.position.set(0, 1.8, 0.45);
-  steeringWheel.rotation.x = Math.PI / 2.7;
-  g.add(steeringWheel);
-
-  const driver = createDriver(isMainHero);
-  g.add(driver);
-
-  const wheelGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.5, 10);
-  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
-  [[1.3, 0.55, 1.7], [-1.3, 0.55, 1.7], [1.3, 0.55, -1.7], [-1.3, 0.55, -1.7]].forEach((p) => {
-    const w = new THREE.Mesh(wheelGeo, wheelMat);
-    w.rotation.z = Math.PI / 2;
-    w.position.set(...p);
-    g.add(w);
-  });
-  return g;
-}
-
-function makeTrack(track) {
-  if (game.trackObj) scene.remove(game.trackObj);
-  if (game.decorGroup) scene.remove(game.decorGroup);
-
-  const grp = new THREE.Group();
-  const roadMaterial = new THREE.MeshStandardMaterial({ color: track.color, roughness: 0.85 });
-  const borderMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
-
-  for (let i = 0; i < track.waypoints.length; i++) {
-    const a = track.waypoints[i];
-    const b = track.waypoints[(i + 1) % track.waypoints.length];
+  for (let i = 0; i < game.waypoints.length; i++) {
+    const a = game.waypoints[i];
+    const b = game.waypoints[(i + 1) % game.waypoints.length];
     const dir = b.clone().sub(a);
-    const length = dir.length();
+    const len = dir.length();
     const mid = a.clone().add(b).multiplyScalar(0.5);
 
-    const road = new THREE.Mesh(new THREE.BoxGeometry(16, 0.8, length), roadMaterial);
+    const road = new THREE.Mesh(new THREE.BoxGeometry(16, 0.8, len), roadMat);
     road.position.copy(mid);
-    road.position.y = 0;
     road.lookAt(b.x, mid.y, b.z);
     road.rotateY(Math.PI / 2);
     road.receiveShadow = true;
-    grp.add(road);
+    game.worldGroup.add(road);
 
-    if (i % 2 === 0) {
-      const border = new THREE.Mesh(new THREE.BoxGeometry(1, 1, length), borderMaterial);
+    if (i % 3 === 0) {
+      const border = new THREE.Mesh(new THREE.BoxGeometry(1, 1, len), borderMat);
       border.position.copy(mid.clone().add(new THREE.Vector3(dir.z, 0, -dir.x).normalize().multiplyScalar(8.5)));
       border.position.y = 0.4;
       border.lookAt(b.x, 0, b.z);
       border.rotateY(Math.PI / 2);
-      grp.add(border);
+      game.worldGroup.add(border);
     }
   }
 
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({ color: 0x55aa55 }));
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(450, 450), new THREE.MeshStandardMaterial({ color: 0x59b44a }));
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
-  grp.add(ground);
+  game.worldGroup.add(ground);
 
-  game.trackObj = grp;
-  scene.add(grp);
+  // Tremplins (ramps)
+  [6, 17, 28].forEach((idx) => {
+    const wp = game.waypoints[idx];
+    const next = game.waypoints[(idx + 1) % game.waypoints.length];
+    const dir = next.clone().sub(wp).normalize();
 
-  game.decorGroup = track.deco();
-  scene.add(game.decorGroup);
-}
-
-function addCityDeco() {
-  const g = new THREE.Group();
-  for (let i = 0; i < 45; i++) {
-    const h = 4 + Math.random() * 26;
-    const b = new THREE.Mesh(
-      new THREE.BoxGeometry(5, h, 5),
-      new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(0.58 + Math.random() * 0.08, 0.5, 0.45) }),
+    const ramp = new THREE.Mesh(
+      new THREE.BoxGeometry(5.2, 0.8, 4.4),
+      new THREE.MeshStandardMaterial({ color: 0xff9a2f, emissive: 0x7a3f00, emissiveIntensity: 0.6 }),
     );
-    b.position.set((Math.random() - 0.5) * 220, h / 2, (Math.random() - 0.5) * 220);
-    b.castShadow = true;
-    g.add(b);
-  }
-  return g;
-}
+    ramp.position.copy(wp).add(dir.clone().multiplyScalar(1.6));
+    ramp.position.y = 0.7;
+    ramp.lookAt(next.x, ramp.position.y, next.z);
+    ramp.rotation.x = -0.3;
+    ramp.castShadow = true;
+    game.worldGroup.add(ramp);
 
-function addDesertDeco() {
-  const g = new THREE.Group();
-  scene.fog.color.set(0xf5d8a8);
-  for (let i = 0; i < 55; i++) {
-    const rock = new THREE.Mesh(
-      new THREE.DodecahedronGeometry(1 + Math.random() * 2),
-      new THREE.MeshStandardMaterial({ color: 0xb8793f }),
-    );
-    rock.position.set((Math.random() - 0.5) * 220, 1, (Math.random() - 0.5) * 220);
-    g.add(rock);
-  }
-  return g;
-}
+    game.ramps.push({ mesh: ramp, radius: 3.3 });
+  });
 
-function addJungleDeco() {
-  const g = new THREE.Group();
-  scene.fog.color.set(0x9ad6ff);
-  for (let i = 0; i < 85; i++) {
-    const tree = new THREE.Group();
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, 3.5, 8), new THREE.MeshStandardMaterial({ color: 0x6e3f1f }));
-    trunk.position.y = 1.6;
-    const top = new THREE.Mesh(new THREE.SphereGeometry(2.2, 10, 10), new THREE.MeshStandardMaterial({ color: 0x2a8f44 }));
-    top.position.y = 4.2;
-    tree.add(trunk, top);
-    tree.position.set((Math.random() - 0.5) * 220, 0, (Math.random() - 0.5) * 220);
-    g.add(tree);
-  }
-  return g;
+  scene.add(game.worldGroup);
+  spawnItemBoxes();
 }
 
 function spawnItemBoxes() {
-  game.itemBoxes.forEach((m) => scene.remove(m));
+  game.itemBoxes.forEach((b) => scene.remove(b));
   game.itemBoxes = [];
-  const wp = tracks[game.selectedTrack].waypoints;
-  for (let i = 0; i < wp.length; i += 3) {
+  for (let i = 0; i < game.waypoints.length; i += 4) {
     const box = new THREE.Mesh(
-      new THREE.BoxGeometry(1.8, 1.8, 1.8),
-      new THREE.MeshStandardMaterial({ color: 0x3ff5ff, emissive: 0x1b6cff, emissiveIntensity: 0.8 }),
+      new THREE.BoxGeometry(1.6, 1.6, 1.6),
+      new THREE.MeshStandardMaterial({ color: 0x2ce9ff, emissive: 0x1465a8, emissiveIntensity: 0.85 }),
     );
-    box.position.copy(wp[i]).add(new THREE.Vector3((Math.random() - 0.5) * 6, 2, (Math.random() - 0.5) * 6));
+    box.position.copy(game.waypoints[i]).add(new THREE.Vector3((Math.random() - 0.5) * 5, 2, (Math.random() - 0.5) * 5));
     box.userData.cooldown = 0;
     scene.add(box);
     game.itemBoxes.push(box);
   }
+}
+
+// -------------------------------------------------
+// Karts / personnages
+// -------------------------------------------------
+function createDriver(isPlayerHero = false) {
+  const g = new THREE.Group();
+  const skin = new THREE.MeshStandardMaterial({ color: 0xe0b08a });
+  const shirt = new THREE.MeshStandardMaterial({ color: 0xf0b12c });
+
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.8, 8, 10), shirt);
+  torso.position.set(0, 2.1, -0.15);
+  g.add(torso);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.36, 20, 16), skin);
+  head.position.set(0, 2.9, -0.3);
+  g.add(head);
+
+  if (isPlayerHero) {
+    const face = new THREE.Mesh(
+      new THREE.CircleGeometry(0.35, 32),
+      new THREE.MeshStandardMaterial({ map: playerFaceTexture, transparent: true, alphaTest: 0.08 }),
+    );
+    face.position.set(0, 2.9, -0.63);
+    face.rotation.y = Math.PI;
+    g.add(face);
+  }
+  return g;
+}
+
+function createKartMesh(color, isPlayerHero = false) {
+  const g = new THREE.Group();
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.8, 4.2), new THREE.MeshStandardMaterial({ color }));
+  body.position.y = 1.1;
+  body.castShadow = true;
+  g.add(body);
+
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.7, 1.2), new THREE.MeshStandardMaterial({ color: 0x232323 }));
+  seat.position.set(0, 1.55, -0.2);
+  g.add(seat);
+
+  const wheelGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.5, 12);
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x161616 });
+  [[1.3, 0.55, 1.7], [-1.3, 0.55, 1.7], [1.3, 0.55, -1.7], [-1.3, 0.55, -1.7]].forEach((p) => {
+    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+    wheel.rotation.z = Math.PI / 2;
+    wheel.position.set(...p);
+    g.add(wheel);
+  });
+
+  g.add(createDriver(isPlayerHero));
+  return g;
 }
 
 function createRacer(name, color, kartStats, isPlayer = false) {
@@ -355,186 +267,273 @@ function createRacer(name, color, kartStats, isPlayer = false) {
   return {
     name,
     mesh,
-    color,
     isPlayer,
     kartStats,
     speed: 0,
-    heading: 0,
+    heading: Math.PI,
     steer: 0,
     lap: 1,
-    distanceDone: 0,
-    nextWp: 0,
+    nextWp: 1,
+    progress: 0,
     item: null,
     boost: 0,
-    finished: false,
     driftCharge: 0,
-    drifting: false,
-    startBoostFrames: 0,
+    onGround: true,
+    verticalVel: 0,
+    jumpCooldown: 0,
+    jumpFromRamp: false,
+    airTime: 0,
+    finished: false,
   };
 }
 
+// -------------------------------------------------
+// Jump & air/ground detection
+// -------------------------------------------------
+function jump(racer, power = 7.5, fromRamp = false) {
+  if (!racer.onGround || racer.jumpCooldown > 0) return;
+  racer.onGround = false;
+  racer.verticalVel = power;
+  racer.jumpCooldown = 0.3;
+  racer.jumpFromRamp = fromRamp;
+  playTone(520, 0.09, 'triangle', 0.08); // son de saut
+}
+
+function spawnLandingEffect(pos) {
+  for (let i = 0; i < 16; i++) {
+    const p = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true }));
+    p.position.copy(pos).add(new THREE.Vector3((Math.random() - 0.5) * 1.8, 0.2, (Math.random() - 0.5) * 1.8));
+    scene.add(p);
+    game.particles.push({ mesh: p, life: 0.35 });
+  }
+}
+
+function updateVerticalPhysics(r, dt) {
+  const groundY = 1.1;
+  r.jumpCooldown = Math.max(0, r.jumpCooldown - dt);
+
+  if (!r.onGround) {
+    r.airTime += dt;
+    r.verticalVel -= 19 * dt; // gravité réaliste arcade
+    r.mesh.position.y += r.verticalVel * dt;
+
+    // Animation du saut
+    r.mesh.rotation.x = THREE.MathUtils.lerp(r.mesh.rotation.x, -0.18 + Math.min(r.verticalVel * 0.015, 0.22), dt * 8);
+
+    if (r.mesh.position.y <= groundY) {
+      r.mesh.position.y = groundY;
+      r.onGround = true;
+      r.verticalVel = 0;
+      r.mesh.rotation.x = 0;
+      spawnLandingEffect(r.mesh.position.clone());
+      playTone(180, 0.07, 'square', 0.06);
+
+      // Boost après saut réussi (tremplin)
+      if (r.jumpFromRamp && r.airTime > 0.25) {
+        r.boost = Math.max(r.boost, 1.2);
+        playTone(720, 0.05, 'sawtooth', 0.07);
+      }
+      r.jumpFromRamp = false;
+      r.airTime = 0;
+    }
+  }
+}
+
+function checkRamps(r) {
+  if (!r.onGround || r.speed < 22) return;
+  for (const ramp of game.ramps) {
+    if (r.mesh.position.distanceTo(ramp.mesh.position) < ramp.radius) {
+      jump(r, 8.2, true);
+      break;
+    }
+  }
+}
+
+// -------------------------------------------------
+// Gameplay update
+// -------------------------------------------------
 function setupRace() {
   game.started = false;
   game.finished = false;
-  game.countdown = 4;
+  game.countdown = 3;
   game.raceTime = 0;
+
   game.projectiles.forEach((p) => scene.remove(p.mesh));
   game.traps.forEach((t) => scene.remove(t.mesh));
   game.racers.forEach((r) => scene.remove(r.mesh));
+  game.particles.forEach((p) => scene.remove(p.mesh));
   game.projectiles = [];
   game.traps = [];
   game.particles = [];
   game.racers = [];
 
-  const track = tracks[game.selectedTrack];
-  makeTrack(track);
-  spawnItemBoxes();
+  buildWorld();
 
-  const playerCfg = characters[game.selectedCharacter];
-  const kartCfg = karts[game.selectedKart];
-  game.racers.push(createRacer(playerCfg.name, playerCfg.color, kartCfg, true));
+  const playerChar = characters[game.selectedCharacter];
+  const playerKart = karts[game.selectedKart];
+  game.racers.push(createRacer(playerChar.name, playerChar.color, playerKart, true));
 
   for (let i = 0; i < 7; i++) {
     const c = characters[(i + 1) % characters.length];
     const k = karts[i % karts.length];
-    game.racers.push(createRacer(`IA ${i + 1} · ${c.name}`, c.color, k, false));
+    game.racers.push(createRacer(`IA ${i + 1}`, c.color, k, false));
   }
 
-  const start = track.waypoints[0];
+  const start = game.waypoints[0];
   game.racers.forEach((r, idx) => {
     const row = Math.floor(idx / 2);
-    const side = idx % 2 === 0 ? -1.6 : 1.6;
+    const side = idx % 2 === 0 ? -1.8 : 1.8;
     r.mesh.position.set(start.x + side, 1.1, start.z + row * 4);
     r.heading = Math.PI;
     r.mesh.rotation.y = r.heading;
     r.lap = 1;
-    r.distanceDone = 0;
     r.nextWp = 1;
+    r.progress = 0;
     r.item = null;
     r.finished = false;
+    r.speed = 0;
+    r.onGround = true;
+    r.verticalVel = 0;
+    r.jumpFromRamp = false;
+    r.airTime = 0;
   });
 }
 
-function consumeItem(racer) {
+function useItem(racer) {
   if (!racer.item) return;
   if (racer.item === 'boost' || racer.item === 'turbo') {
-    racer.boost = 1.6;
-    playTone(420, 0.08, 'sawtooth', 0.08);
+    racer.boost = 1.4;
+    playTone(430, 0.08, 'sawtooth', 0.08);
   } else if (racer.item === 'missile') {
     const dir = new THREE.Vector3(Math.sin(racer.heading), 0, Math.cos(racer.heading));
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.45, 8, 8), new THREE.MeshStandardMaterial({ color: 0xff5533, emissive: 0xff2200 }));
-    mesh.position.copy(racer.mesh.position).add(dir.multiplyScalar(3));
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), new THREE.MeshStandardMaterial({ color: 0xff4f2b, emissive: 0xff1b00 }));
+    mesh.position.copy(racer.mesh.position).add(dir.clone().multiplyScalar(3));
     scene.add(mesh);
-    game.projectiles.push({ owner: racer, mesh, vel: dir.multiplyScalar(95), life: 2.3 });
-    playTone(250, 0.06, 'square', 0.08);
+    game.projectiles.push({ owner: racer, mesh, vel: dir.multiplyScalar(90), life: 2.4 });
   } else if (racer.item === 'trap') {
-    const mesh = new THREE.Mesh(new THREE.ConeGeometry(0.8, 1.2, 7), new THREE.MeshStandardMaterial({ color: 0x772200 }));
+    const mesh = new THREE.Mesh(new THREE.ConeGeometry(0.75, 1.1, 7), new THREE.MeshStandardMaterial({ color: 0x793000 }));
     mesh.position.copy(racer.mesh.position);
     mesh.position.y = 0.7;
     scene.add(mesh);
-    game.traps.push({ owner: racer, mesh, life: 14 });
+    game.traps.push({ owner: racer, mesh, life: 12 });
   }
   racer.item = null;
 }
 
 function updatePlayer(r, dt) {
-  const accel = r.kartStats.accel;
-  const maxSpeed = r.kartStats.maxSpeed;
+  const throttle = keys.ArrowUp ? 1 : 0;
+  const brake = keys.ArrowDown ? 1 : 0;
+  const turn = (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0);
+  const drifting = !!keys.ShiftLeft || !!keys.ShiftRight;
 
-  const throttle = keyState.ArrowUp ? 1 : 0;
-  const brake = keyState.ArrowDown ? 0.85 : 0;
-  const turn = (keyState.ArrowRight ? 1 : 0) - (keyState.ArrowLeft ? 1 : 0);
+  if (!game.started || r.finished) return;
 
-  if (!game.started) {
-    if (throttle) r.startBoostFrames += 1;
-    return;
-  }
+  r.speed += throttle * r.kartStats.accel * dt;
+  r.speed -= brake * r.kartStats.accel * 1.1 * dt;
+  r.speed -= 9.5 * dt;
 
-  r.speed += throttle * accel * dt;
-  r.speed -= brake * accel * 1.3 * dt;
-  r.speed -= 10 * dt;
-
-  if (Math.abs(turn) > 0.1 && throttle > 0 && r.speed > 24) {
-    r.drifting = true;
-    r.driftCharge = Math.min(r.driftCharge + dt, 1.4);
-  } else if (r.drifting) {
-    if (r.driftCharge > 0.4) r.boost = Math.max(r.boost, 0.6 + r.driftCharge * 0.8);
-    r.drifting = false;
+  // Drift (SHIFT)
+  if (drifting && Math.abs(turn) > 0.1 && r.speed > 20 && r.onGround) {
+    r.driftCharge = Math.min(r.driftCharge + dt, 1.6);
+  } else if (r.driftCharge > 0.35) {
+    r.boost = Math.max(r.boost, 0.5 + r.driftCharge * 0.7);
     r.driftCharge = 0;
-    playTone(500, 0.04, 'triangle', 0.07);
+    playTone(580, 0.05, 'triangle', 0.06);
+  } else {
+    r.driftCharge = Math.max(0, r.driftCharge - dt * 2);
   }
 
-  const handling = r.kartStats.handling * (r.drifting ? 1.4 : 1);
-  r.steer = THREE.MathUtils.lerp(r.steer, turn, 7 * dt);
-  r.heading += r.steer * handling * dt * (r.speed / 40);
+  const handling = r.kartStats.handling * (drifting ? 1.35 : 1);
+  r.steer = THREE.MathUtils.lerp(r.steer, turn, dt * 8);
+  r.heading += r.steer * handling * dt * (r.speed / 35) * (r.onGround ? 1 : 0.45);
 
   if (r.boost > 0) {
-    r.speed += 34 * dt;
+    r.speed += 35 * dt;
     r.boost -= dt;
-    spawnSpeedParticle(r.mesh.position.clone(), 0x8de4ff);
   }
 
-  r.speed = THREE.MathUtils.clamp(r.speed, 0, maxSpeed + 20);
-  const velocity = new THREE.Vector3(Math.sin(r.heading), 0, Math.cos(r.heading)).multiplyScalar(r.speed * dt);
-  r.mesh.position.add(velocity);
+  r.speed = THREE.MathUtils.clamp(r.speed, -20, r.kartStats.maxSpeed + 18);
+  const vel = new THREE.Vector3(Math.sin(r.heading), 0, Math.cos(r.heading)).multiplyScalar(r.speed * dt);
+  r.mesh.position.add(vel);
   r.mesh.rotation.y = r.heading;
 
-  if (keyState.Space) {
-    consumeItem(r);
-    keyState.Space = false;
+  // J = saut manuel
+  if (keys.KeyJ) {
+    jump(r, 7.5, false);
+    keys.KeyJ = false;
   }
 
-  playTone(120 + r.speed * 3, 0.012, 'sawtooth', 0.016);
+  if (keys.Space) {
+    useItem(r);
+    keys.Space = false;
+  }
+
+  checkRamps(r);
+  updateVerticalPhysics(r, dt);
 }
 
 function updateAI(r, dt) {
   if (!game.started || r.finished) return;
-  const wp = tracks[game.selectedTrack].waypoints;
-  const target = wp[r.nextWp];
+  const target = game.waypoints[r.nextWp];
   const toTarget = target.clone().sub(r.mesh.position);
-  if (toTarget.length() < 7) r.nextWp = (r.nextWp + 1) % wp.length;
+  if (toTarget.length() < 7) r.nextWp = (r.nextWp + 1) % game.waypoints.length;
 
   const desired = Math.atan2(toTarget.x, toTarget.z);
   const delta = THREE.MathUtils.euclideanModulo(desired - r.heading + Math.PI, Math.PI * 2) - Math.PI;
-  r.heading += THREE.MathUtils.clamp(delta, -1, 1) * r.kartStats.handling * dt * 0.82;
-  const targetSpeed = r.kartStats.maxSpeed * (0.75 + Math.random() * 0.18);
-  r.speed = THREE.MathUtils.lerp(r.speed, targetSpeed, dt * 0.85);
+  r.heading += THREE.MathUtils.clamp(delta, -1, 1) * r.kartStats.handling * dt * 0.85;
 
-  if (Math.random() < dt * 0.22 && r.item) consumeItem(r);
+  const targetSpeed = r.kartStats.maxSpeed * (0.7 + Math.random() * 0.2);
+  r.speed = THREE.MathUtils.lerp(r.speed, targetSpeed, dt * 0.9);
+
+  if (Math.random() < dt * 0.2 && r.item) useItem(r);
   if (r.boost > 0) {
-    r.speed += 26 * dt;
+    r.speed += 28 * dt;
     r.boost -= dt;
-    spawnSpeedParticle(r.mesh.position.clone(), 0xfff89a);
   }
 
-  const velocity = new THREE.Vector3(Math.sin(r.heading), 0, Math.cos(r.heading)).multiplyScalar(r.speed * dt);
-  r.mesh.position.add(velocity);
+  const vel = new THREE.Vector3(Math.sin(r.heading), 0, Math.cos(r.heading)).multiplyScalar(r.speed * dt);
+  r.mesh.position.add(vel);
   r.mesh.rotation.y = r.heading;
+
+  checkRamps(r);
+  updateVerticalPhysics(r, dt);
 }
 
-function spawnSpeedParticle(pos, color) {
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.28, 6, 6), new THREE.MeshBasicMaterial({ color, transparent: true }));
-  mesh.position.copy(pos).add(new THREE.Vector3((Math.random() - 0.5) * 1.6, 1.4, (Math.random() - 0.5) * 1.6));
-  scene.add(mesh);
-  game.particles.push({ mesh, life: 0.35 });
+function updateBoxes(dt) {
+  game.itemBoxes.forEach((b) => {
+    b.rotation.x += dt;
+    b.rotation.y += dt * 1.1;
+    b.userData.cooldown = Math.max(0, b.userData.cooldown - dt);
+    b.visible = b.userData.cooldown <= 0;
+
+    if (!b.visible) return;
+    game.racers.forEach((r) => {
+      if (!r.item && r.mesh.position.distanceTo(b.position) < 2.2) {
+        r.item = ['boost', 'turbo', 'missile', 'trap'][Math.floor(Math.random() * 4)];
+        b.userData.cooldown = 4;
+        playTone(640, 0.05, 'triangle', 0.07);
+      }
+    });
+  });
 }
 
 function updateProjectiles(dt) {
   game.projectiles = game.projectiles.filter((p) => {
     p.mesh.position.addScaledVector(p.vel, dt);
     p.life -= dt;
-    let hit = false;
+    let exploded = false;
+
     game.racers.forEach((r) => {
       if (r === p.owner) return;
-      if (r.mesh.position.distanceTo(p.mesh.position) < 2.4) {
-        r.speed *= 0.42;
-        r.boost = 0;
-        hit = true;
-        playTone(90, 0.15, 'square', 0.09);
-        for (let i = 0; i < 14; i++) spawnSpeedParticle(r.mesh.position, 0xff5533);
+      if (r.mesh.position.distanceTo(p.mesh.position) < 2.2) {
+        r.speed *= 0.45;
+        exploded = true;
+        playTone(95, 0.14, 'square', 0.08);
+        spawnLandingEffect(r.mesh.position.clone());
       }
     });
-    if (p.life <= 0 || hit) {
+
+    if (exploded || p.life <= 0) {
       scene.remove(p.mesh);
       return false;
     }
@@ -547,10 +546,10 @@ function updateTraps(dt) {
     t.life -= dt;
     game.racers.forEach((r) => {
       if (r === t.owner) return;
-      if (r.mesh.position.distanceTo(t.mesh.position) < 2.2) {
-        r.speed *= 0.35;
+      if (r.mesh.position.distanceTo(t.mesh.position) < 2) {
+        r.speed *= 0.4;
         t.life = -1;
-        playTone(70, 0.2, 'triangle', 0.1);
+        playTone(70, 0.2, 'triangle', 0.08);
       }
     });
     if (t.life <= 0) {
@@ -564,7 +563,7 @@ function updateTraps(dt) {
 function updateParticles(dt) {
   game.particles = game.particles.filter((p) => {
     p.life -= dt;
-    p.mesh.position.y += dt * 5;
+    p.mesh.position.y += dt * 3;
     p.mesh.material.opacity = p.life / 0.35;
     if (p.life <= 0) {
       scene.remove(p.mesh);
@@ -574,102 +573,81 @@ function updateParticles(dt) {
   });
 }
 
-function updateItemBoxes(dt) {
-  game.itemBoxes.forEach((box) => {
-    box.rotation.x += dt;
-    box.rotation.y += dt * 1.2;
-    box.userData.cooldown = Math.max(0, box.userData.cooldown - dt);
-    box.visible = box.userData.cooldown <= 0;
-
-    if (!box.visible) return;
-    game.racers.forEach((r) => {
-      if (!r.item && r.mesh.position.distanceTo(box.position) < 2.3) {
-        r.item = ['boost', 'missile', 'trap', 'turbo'][Math.floor(Math.random() * 4)];
-        box.userData.cooldown = 4;
-        playTone(650, 0.06, 'triangle', 0.09);
-      }
-    });
-  });
-}
-
 function updateCollisions() {
-  const r = game.racers;
-  for (let i = 0; i < r.length; i++) {
-    for (let j = i + 1; j < r.length; j++) {
-      const d = r[i].mesh.position.distanceTo(r[j].mesh.position);
-      if (d < 2.2) {
-        const push = r[i].mesh.position.clone().sub(r[j].mesh.position).normalize().multiplyScalar((2.2 - d) * 0.6);
-        r[i].mesh.position.add(push);
-        r[j].mesh.position.sub(push);
-        r[i].speed *= 0.98;
-        r[j].speed *= 0.98;
+  for (let i = 0; i < game.racers.length; i++) {
+    for (let j = i + 1; j < game.racers.length; j++) {
+      const a = game.racers[i];
+      const b = game.racers[j];
+      const d = a.mesh.position.distanceTo(b.mesh.position);
+      if (d < 2.3) {
+        const push = a.mesh.position.clone().sub(b.mesh.position).normalize().multiplyScalar((2.3 - d) * 0.55);
+        a.mesh.position.add(push);
+        b.mesh.position.sub(push);
+        a.speed *= 0.99;
+        b.speed *= 0.99;
       }
     }
   }
 }
 
-function updateRaceProgress() {
-  const wp = tracks[game.selectedTrack].waypoints;
-  const total = wp.length;
-
+function updateProgressAndHUD() {
   game.racers.forEach((r) => {
-    const target = wp[r.nextWp];
+    const target = game.waypoints[r.nextWp];
     if (r.mesh.position.distanceTo(target) < 6) {
-      r.nextWp = (r.nextWp + 1) % total;
-      r.distanceDone += 1;
+      r.nextWp = (r.nextWp + 1) % game.waypoints.length;
+      r.progress += 1;
       if (r.nextWp === 1) {
         r.lap += 1;
         if (r.lap > 3 && !r.finished) {
           r.finished = true;
           if (r.isPlayer) {
             game.finished = true;
-            ui.result.classList.remove('hidden');
             ui.hud.classList.add('hidden');
+            ui.result.classList.remove('hidden');
           }
         }
       }
     }
   });
 
-  const ranking = [...game.racers].sort((a, b) => (b.lap * 1000 + b.distanceDone) - (a.lap * 1000 + a.distanceDone));
-  const playerPos = ranking.findIndex((r) => r.isPlayer) + 1;
+  const rank = [...game.racers].sort((a, b) => (b.lap * 1000 + b.progress) - (a.lap * 1000 + a.progress));
   const player = game.racers[0];
-  ui.position.textContent = `Position: ${playerPos}/8`;
+  const pos = rank.findIndex((r) => r.isPlayer) + 1;
+
+  ui.position.textContent = `Position: ${pos}/8`;
   ui.lap.textContent = `Tour: ${Math.min(player.lap, 3)}/3`;
+  ui.speed.textContent = `Vitesse: ${Math.round(Math.abs(player.speed) * 3.1)} km/h`;
+  ui.item.textContent = `Bonus: ${player.item ? player.item.toUpperCase() : 'Aucun'}`;
 }
 
-function updateHUD() {
-  const p = game.racers[0];
-  ui.speed.textContent = `Vitesse: ${Math.round(p.speed * 3.2)} km/h`;
-  ui.item.textContent = `Bonus: ${p.item ? p.item.toUpperCase() : 'Aucun'}`;
+function updateTimerText() {
   const t = game.raceTime;
-  const mins = String(Math.floor(t / 60)).padStart(2, '0');
-  const secs = String(Math.floor(t % 60)).padStart(2, '0');
+  const mm = String(Math.floor(t / 60)).padStart(2, '0');
+  const ss = String(Math.floor(t % 60)).padStart(2, '0');
   const ms = String(Math.floor((t % 1) * 1000)).padStart(3, '0');
-  ui.chrono.textContent = `Temps: ${mins}:${secs}.${ms}`;
+  ui.chrono.textContent = `Temps: ${mm}:${ss}.${ms}`;
 }
 
 function updateCamera(dt) {
-  const p = game.racers[0];
-  if (!p) return;
-  const desired = p.mesh.position.clone().add(new THREE.Vector3(Math.sin(p.heading) * -12, 8, Math.cos(p.heading) * -12));
+  const player = game.racers[0];
+  if (!player) return;
+  const desired = player.mesh.position.clone().add(new THREE.Vector3(Math.sin(player.heading) * -11, 7.5, Math.cos(player.heading) * -11));
   camera.position.lerp(desired, dt * 5);
-  camera.lookAt(p.mesh.position.x, p.mesh.position.y + 2.5, p.mesh.position.z);
+  camera.lookAt(player.mesh.position.x, player.mesh.position.y + 2.2, player.mesh.position.z);
 }
 
-function tick() {
+function gameLoop() {
   const dt = Math.min(clock.getDelta(), 0.033);
+
   if (game.state === 'racing') {
     if (!game.started) {
       game.countdown -= dt;
-      const cd = Math.ceil(game.countdown);
-      if (cd > 0) ui.countdown.textContent = String(cd);
-      else if (cd === 0) ui.countdown.textContent = 'GO!';
-      if (game.countdown <= 0) {
+      const c = Math.ceil(game.countdown);
+      if (c > 0) ui.countdown.textContent = String(c);
+      else if (c === 0) ui.countdown.textContent = 'GO!';
+      else {
         game.started = true;
         ui.countdown.textContent = '';
-        const p = game.racers[0];
-        if (p.startBoostFrames > 20 && p.startBoostFrames < 130) p.boost = 2.1;
       }
     } else if (!game.finished) {
       game.raceTime += dt;
@@ -680,79 +658,99 @@ function tick() {
       else updateAI(r, dt);
     });
 
-    updateItemBoxes(dt);
-    updateCollisions();
+    updateBoxes(dt);
     updateProjectiles(dt);
     updateTraps(dt);
     updateParticles(dt);
-    updateRaceProgress();
-    updateHUD();
-    updateCamera(dt);
+    updateCollisions();
+    updateProgressAndHUD();
+    updateTimerText();
 
     if (game.finished) {
-      const ranking = [...game.racers].sort((a, b) => (b.lap * 1000 + b.distanceDone) - (a.lap * 1000 + a.distanceDone));
-      const playerPos = ranking.findIndex((r) => r.isPlayer) + 1;
-      ui.resultText.textContent = `${game.racers[0].name} termine en position #${playerPos} en ${ui.chrono.textContent.replace('Temps: ', '')}`;
+      const rank = [...game.racers].sort((a, b) => (b.lap * 1000 + b.progress) - (a.lap * 1000 + a.progress));
+      const pos = rank.findIndex((r) => r.isPlayer) + 1;
+      ui.resultText.textContent = `${game.racers[0].name} termine #${pos} en ${ui.chrono.textContent.replace('Temps: ', '')}`;
     }
   }
 
+  updateCamera(dt);
   renderer.render(scene, camera);
-  requestAnimationFrame(tick);
+  requestAnimationFrame(gameLoop);
 }
 
-function fillSelect(select, items) {
-  items.forEach((item, idx) => {
-    const opt = document.createElement('option');
-    opt.value = String(idx);
-    opt.textContent = item.name;
-    select.appendChild(opt);
-  });
-}
-
+// -------------------------------------------------
+// UI init + tutoriel
+// -------------------------------------------------
 function initUI() {
-  const cSel = document.getElementById('character-select');
-  const kSel = document.getElementById('kart-select');
-  const tSel = document.getElementById('track-select');
-  fillSelect(cSel, characters);
-  fillSelect(kSel, karts);
-  Object.keys(tracks).forEach((key) => {
-    const opt = document.createElement('option');
-    opt.value = key;
-    opt.textContent = tracks[key].name;
-    tSel.appendChild(opt);
+  const characterSelect = document.getElementById('character-select');
+  const kartSelect = document.getElementById('kart-select');
+  const trackSelect = document.getElementById('track-select');
+
+  characterSelect.innerHTML = '';
+  kartSelect.innerHTML = '';
+  trackSelect.innerHTML = '';
+
+  characters.forEach((c, i) => {
+    const o = document.createElement('option');
+    o.value = String(i);
+    o.textContent = c.name;
+    characterSelect.appendChild(o);
+  });
+
+  karts.forEach((k, i) => {
+    const o = document.createElement('option');
+    o.value = String(i);
+    o.textContent = `${k.name} (V${k.maxSpeed}/A${k.accel}/M${k.handling.toFixed(1)})`;
+    kartSelect.appendChild(o);
+  });
+
+  Object.entries(tracks).forEach(([key, t]) => {
+    const o = document.createElement('option');
+    o.value = key;
+    o.textContent = t.name;
+    trackSelect.appendChild(o);
   });
 
   document.getElementById('play-btn').onclick = () => {
     ui.main.classList.add('hidden');
     ui.setup.classList.remove('hidden');
   };
+
   document.getElementById('options-btn').onclick = () => {
     ui.main.classList.add('hidden');
     ui.options.classList.remove('hidden');
   };
+
   document.getElementById('quit-btn').onclick = () => window.close();
+
   document.getElementById('back-btn').onclick = () => {
     ui.setup.classList.add('hidden');
     ui.main.classList.remove('hidden');
   };
+
   document.getElementById('options-back-btn').onclick = () => {
     ui.options.classList.add('hidden');
     ui.main.classList.remove('hidden');
   };
+
   document.getElementById('volume-range').oninput = (e) => {
     masterVolume = Number(e.target.value) / 100;
   };
+
   document.getElementById('start-btn').onclick = () => {
-    game.selectedCharacter = Number(cSel.value);
-    game.selectedKart = Number(kSel.value);
-    game.selectedTrack = tSel.value;
-    setupRace();
+    game.selectedCharacter = Number(characterSelect.value);
+    game.selectedKart = Number(kartSelect.value);
+    game.selectedTrack = trackSelect.value;
+
     ui.setup.classList.add('hidden');
     ui.result.classList.add('hidden');
     ui.hud.classList.remove('hidden');
-    ui.countdown.textContent = '3';
     game.state = 'racing';
+
+    setupRace();
+    showTutorial();
   };
+
   document.getElementById('race-again-btn').onclick = () => {
     ui.result.classList.add('hidden');
     ui.setup.classList.remove('hidden');
@@ -760,12 +758,37 @@ function initUI() {
   };
 }
 
-document.addEventListener('keydown', (e) => {
-  keyState[e.code.replace('Key', '')] = true;
+function showTutorial() {
+  const old = document.getElementById('tutorial-box');
+  if (old) old.remove();
+
+  const tutorial = document.createElement('div');
+  tutorial.id = 'tutorial-box';
+  tutorial.className = 'panel';
+  tutorial.style.position = 'absolute';
+  tutorial.style.top = '12px';
+  tutorial.style.left = '50%';
+  tutorial.style.transform = 'translateX(-50%)';
+  tutorial.style.width = 'min(680px, 94vw)';
+  tutorial.style.padding = '0.8rem';
+  tutorial.style.fontSize = '0.92rem';
+  tutorial.innerHTML = `
+    <strong>Tutoriel rapide (MacBook)</strong><br>
+    ↑ accélérer · ↓ freiner/reculer · ←/→ tourner · SHIFT drift · J sauter · ESPACE bonus.<br>
+    Prends les tremplins pour faire des sauts + boost à l'atterrissage.
+  `;
+  document.getElementById('ui-root').appendChild(tutorial);
+
+  setTimeout(() => tutorial.remove(), 6500);
+}
+
+// Keyboard
+window.addEventListener('keydown', (e) => {
+  keys[e.code] = true;
   if (audioCtx.state === 'suspended') audioCtx.resume();
 });
-document.addEventListener('keyup', (e) => {
-  keyState[e.code.replace('Key', '')] = false;
+window.addEventListener('keyup', (e) => {
+  keys[e.code] = false;
 });
 
 window.addEventListener('resize', () => {
@@ -775,5 +798,5 @@ window.addEventListener('resize', () => {
 });
 
 initUI();
-makeTrack(tracks.city);
-tick();
+buildWorld();
+gameLoop();

@@ -1,7 +1,7 @@
-# Dossier des images
+# Images du joueur
 
-Ajoute ici la photo du personnage principal avec ce nom exact :
+Ajoute la photo du joueur ici avec ce nom exact :
 
-- `assane-head.jpg`
+- `player.png`
 
-Le fichier est utilisé par `src/js/game.js` comme texture de tête pour le héros **Assane Thiongane**.
+Ce fichier est utilisé comme texture du visage du personnage principal.
